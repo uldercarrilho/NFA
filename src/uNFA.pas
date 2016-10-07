@@ -47,7 +47,7 @@ procedure TNFA.DestroyTransactions;
 var
   i, j: Integer;
 begin
-  for i := 0 to FStates.Count -1 do
+  for i := 0 to FStates.Count - 1 do
     for j := 0 to FSymbols.Count - 1 do
       FreeAndNil(FTransitions[i][j]);
 
@@ -69,17 +69,17 @@ var
   i, j: Integer;
 begin
   SetLength(FTransitions, FStates.Count, FSymbols.Count);
-  for i := 0 to FStates.Count -1 do
+  for i := 0 to FStates.Count - 1 do
     for j := 0 to FSymbols.Count - 1 do
       FTransitions[i][j] := TStringList.Create;
 end;
 
 destructor TNFA.Destroy;
 begin
+  DestroyTransactions;
   FreeAndNil(FStates);
   FreeAndNil(FSymbols);
   FreeAndNil(FFinalStates);
-  DestroyTransactions;
   FreeAndNil(FStrings);
   inherited;
 end;
@@ -94,6 +94,9 @@ var
   NFADefinition: TIniFile;
   i, j: Integer;
 begin
+  // destroy previous transitions
+  DestroyTransactions;
+
   NFADefinition := TIniFile.Create(AFileName);
   try
     FDescription := NFADefinition.ReadString('Automata', 'Description', '');
@@ -102,15 +105,15 @@ begin
     FInitialState := NFADefinition.ReadString('Automata', 'InitialState', '');
     FFinalStates.CommaText := NFADefinition.ReadString('Automata', 'FinalStates', '');
 
-    // a string vazia deve ser adicionada à lista de símbolos para ser considerada nas transições
+    // the empty string must be add into list of symbols to be considered in transitions
     if FSymbols.IndexOf('"') = -1 then
       FSymbols.Add('"');
 
     CreateTransitions;
-    // carrega as transações definidas no arquivo de configuração do NFA
+    // load transitions from NFA config file
     for i := 0 to FStates.Count -1 do
       for j := 0 to FSymbols.Count - 1 do
-        FTransitions[i][j].CommaText := NFADefinition.ReadString(FStates.Strings[i], FSymbols.Strings[i], '');
+        FTransitions[i][j].CommaText := NFADefinition.ReadString(FStates.Strings[i], FSymbols.Strings[j], '');
   finally
     FreeAndNil(NFADefinition);
   end;
