@@ -14,6 +14,21 @@ object Form1: TForm1
   Font.Style = []
   OldCreateOrder = False
   Position = poScreenCenter
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
+  object btnLoad: TButton
+    Left = 416
+    Top = 128
+    Width = 75
+    Height = 25
+    Caption = 'Load'
+    TabOrder = 0
+    OnClick = btnLoadClick
+  end
+  object dlgOpen: TOpenDialog
+    Left = 432
+    Top = 72
+  end
 end

@@ -2,7 +2,8 @@ program NFA;
 
 uses
   Vcl.Forms,
-  uMain in 'uMain.pas' {Form1};
+  uMain in 'uMain.pas' {Form1},
+  uNFA in 'uNFA.pas';
 
 {$R *.res}
 
