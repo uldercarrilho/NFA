@@ -27,6 +27,23 @@ object Form1: TForm1
     TabOrder = 0
     OnClick = btnLoadClick
   end
+  object btnExecute: TButton
+    Left = 416
+    Top = 168
+    Width = 75
+    Height = 25
+    Caption = 'btnExecute'
+    TabOrder = 1
+  end
+  object Memo: TMemo
+    Left = 8
+    Top = 8
+    Width = 393
+    Height = 293
+    Lines.Strings = (
+      'Memo')
+    TabOrder = 2
+  end
   object dlgOpen: TOpenDialog
     Left = 432
     Top = 72
