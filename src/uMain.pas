@@ -7,69 +7,64 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, uNFA, Vcl.StdCtrls;
 
 type
-  TForm1 = class(TForm)
+  TfrmMain = class(TForm)
     btnLoad: TButton;
     dlgOpen: TOpenDialog;
     btnExecute: TButton;
-    Memo: TMemo;
+    mmoResults: TMemo;
+    lblAutomataDefinition: TLabel;
+    edtAutomataDefinition: TEdit;
+    lblInput: TLabel;
+    edtInput: TEdit;
+    lblResults: TLabel;
     procedure btnLoadClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure btnExecuteClick(Sender: TObject);
   private
-    { Private declarations }
-    FNFA: TNFA;
-  public
-    { Public declarations }
+    FAutomata: TAutomata;
   end;
 
 var
-  Form1: TForm1;
+  frmMain: TfrmMain;
 
 implementation
 
-uses
-  System.IniFiles;
-
 {$R *.dfm}
 
-procedure TForm1.btnLoadClick(Sender: TObject);
-var
-  IniFile: TIniFile;
-  Inputs: TStringList;
-  i: Integer;
+procedure TfrmMain.btnExecuteClick(Sender: TObject);
+begin
+  if FAutomata.Execute(edtInput.Text) then
+    mmoResults.Lines.Add('[Accept] ' + edtInput.Text)
+  else
+    mmoResults.Lines.Add('[Reject] ' + edtInput.Text);
+
+  edtInput.SetFocus;
+end;
+
+procedure TfrmMain.btnLoadClick(Sender: TObject);
 begin
   if not dlgOpen.Execute then
     Exit;
 
-  FNFA.Load(dlgOpen.FileName);
+  FAutomata.Load(dlgOpen.FileName);
 
-  Inputs := TStringList.Create;
-  IniFile := TIniFile.Create(dlgOpen.FileName);
-  try
-    IniFile.ReadSectionValues('Strings', Inputs);
-
-    for i := 0 to Inputs.Count - 1 do
-    begin
-      // remove the key of indetifier. Only value is important.
-      Inputs.Strings[i] := Copy(Inputs.Strings[i], Pos('=', Inputs.Strings[i]) + 1, MaxInt);
-      if FNFA.Run(Inputs.Strings[i]) then
-        Memo.Lines.Add('[ACEITA] ' + Inputs.Strings[i])
-      else
-        Memo.Lines.Add('[REJEITA] ' + Inputs.Strings[i]);
-    end;
-  finally
-    FreeAndNil(IniFile);
-  end;
+  edtAutomataDefinition.Text := dlgOpen.FileName;
+  edtInput.Enabled := True;
+  edtInput.Text := '';
+  edtInput.SetFocus;
+  btnExecute.Enabled := True;
+  mmoResults.Lines.Clear;
 end;
 
-procedure TForm1.FormCreate(Sender: TObject);
+procedure TfrmMain.FormCreate(Sender: TObject);
 begin
-  FNFA := TNFA.Create;
+  FAutomata := TAutomata.Create;
 end;
 
-procedure TForm1.FormDestroy(Sender: TObject);
+procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
-  FreeAndNil(FNFA);
+  FreeAndNil(FAutomata);
 end;
 
 end.

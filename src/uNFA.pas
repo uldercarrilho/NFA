@@ -8,24 +8,24 @@ uses
 type
   TTransitions = array of array of TStringList;
 
-  TNFA = class
+  TAutomata = class
   private
-    FDescription: string;
+    // automata definition
     FStates: TStringList;
     FSymbols: TStringList;
     FInitialState: string;
     FFinalStates: TStringList;
     FTransitions: TTransitions;
     FStrings: TStringList;
-    // running status
+    // input info
     FInput: string;
-    FInputSize: Cardinal;
-    FIndexEmptySymbol: Integer;
+    FInputSize: Integer;
+    FIndexEpsilonSymbol: Integer;
     procedure CreateTransitions;
     procedure DestroyTransactions;
-    function ExecTransition(const AState: string; const AIndexInput: Integer): Boolean;
-    function ExecEmptyTransitions(const AState: string; const AIndexInput: Integer): Boolean;
-    function ExecStateTransition(const AState: string; const AIndexInput: Integer): Boolean;
+    function ExecuteTransition(const AState: string; const AIndexInput: Integer): Boolean;
+    function ExecuteEmptyTransition(const AState: string; const AIndexInput: Integer): Boolean;
+    function ExecuteStateTransition(const AState: string; const AIndexInput: Integer): Boolean;
     function GetTransitions(const AState, ASymbol: string): TStringList; overload;
     function GetTransitions(const AState: string; const AIndexInput: Integer): TStringList; overload;
     function IsFinalState(const AState: string): Boolean;
@@ -35,10 +35,8 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure Load(AFileName: TFilename);
-    function Run(AInput: string): Boolean;
-
+    function Execute(AInput: string): Boolean;
     // automata definition
-    property Description: string read FDescription;
     property States: TStringList read FStates;
     property Symbols: TStringList read FSymbols;
     property InitialState: string read FInitialState;
@@ -55,9 +53,9 @@ uses
 const
   EPSILON = '"';
 
-{ TNFA }
+{ TAutomata }
 
-constructor TNFA.Create;
+constructor TAutomata.Create;
 begin
   FStates := TStringList.Create;
   FSymbols := TStringList.Create;
@@ -67,7 +65,7 @@ begin
   FStrings := TStringList.Create;
 end;
 
-destructor TNFA.Destroy;
+destructor TAutomata.Destroy;
 begin
   DestroyTransactions;
   FreeAndNil(FStates);
@@ -77,145 +75,137 @@ begin
   inherited;
 end;
 
-procedure TNFA.DestroyTransactions;
+procedure TAutomata.DestroyTransactions;
 var
-  i, j: Integer;
+  IdxState, IdxSymbol: Integer;
 begin
-  for i := 0 to FStates.Count - 1 do
-    for j := 0 to FSymbols.Count - 1 do
-      FreeAndNil(FTransitions[i][j]);
+  for IdxState := 0 to FStates.Count - 1 do
+    for IdxSymbol := 0 to FSymbols.Count - 1 do
+      FreeAndNil(FTransitions[IdxState][IdxSymbol]);
 
   SetLength(FTransitions, 0, 0);
 end;
 
-procedure TNFA.Load(AFileName: TFilename);
+procedure TAutomata.Load(AFileName: TFilename);
 var
-  NFADefinition: TIniFile;
-  i, j: Integer;
+  AutomataDefinition: TIniFile;
+  IdxState, IdxSymbol: Integer;
 begin
   // destroy previous transitions
   DestroyTransactions;
 
-  { TODO : Validar dados }
-
-  NFADefinition := TIniFile.Create(AFileName);
+  AutomataDefinition := TIniFile.Create(AFileName);
   try
-    FDescription := NFADefinition.ReadString('Automata', 'Description', '');
-    FStates.CommaText := NFADefinition.ReadString('Automata', 'States', '');
-    FSymbols.CommaText := NFADefinition.ReadString('Automata', 'Symbols', '');
-    FInitialState := NFADefinition.ReadString('Automata', 'InitialState', '');
-    FFinalStates.CommaText := NFADefinition.ReadString('Automata', 'FinalStates', '');
+    FStates.CommaText := AutomataDefinition.ReadString('Automata', 'States', '');
+    FSymbols.CommaText := AutomataDefinition.ReadString('Automata', 'Symbols', '');
+    FInitialState := AutomataDefinition.ReadString('Automata', 'InitialState', '');
+    FFinalStates.CommaText := AutomataDefinition.ReadString('Automata', 'FinalStates', '');
 
-    // the empty string must be add into list of symbols to be considered in transitions
-    FIndexEmptySymbol := FSymbols.IndexOf('"');
-    if FIndexEmptySymbol = -1 then
-      FIndexEmptySymbol := FSymbols.Add('"');
+    // the empty string (Epsilon) must be add into list of symbols to be considered in transitions
+    FIndexEpsilonSymbol := FSymbols.IndexOf(EPSILON);
+    if FIndexEpsilonSymbol = -1 then
+      FIndexEpsilonSymbol := FSymbols.Add(EPSILON);
 
     CreateTransitions;
     // load transitions from NFA config file
-    for i := 0 to FStates.Count -1 do
-      for j := 0 to FSymbols.Count - 1 do
-        FTransitions[i][j].CommaText := NFADefinition.ReadString(FStates.Strings[i], FSymbols.Strings[j], '');
+    for IdxState := 0 to FStates.Count -1 do
+      for IdxSymbol := 0 to FSymbols.Count - 1 do
+        FTransitions[IdxState][IdxSymbol].CommaText := AutomataDefinition.ReadString(FStates.Strings[IdxState], FSymbols.Strings[IdxSymbol], '');
   finally
-    FreeAndNil(NFADefinition);
+    FreeAndNil(AutomataDefinition);
   end;
 end;
 
-procedure TNFA.CreateTransitions;
+procedure TAutomata.CreateTransitions;
 var
-  i, j: Integer;
+  IdxState, IdxSymbol: Integer;
 begin
   SetLength(FTransitions, FStates.Count, FSymbols.Count);
-  for i := 0 to FStates.Count - 1 do
-    for j := 0 to FSymbols.Count - 1 do
-      FTransitions[i][j] := TStringList.Create;
+  for IdxState := 0 to FStates.Count - 1 do
+    for IdxSymbol := 0 to FSymbols.Count - 1 do
+      FTransitions[IdxState][IdxSymbol] := TStringList.Create;
 end;
 
-function TNFA.Run(AInput: string): Boolean;
+function TAutomata.Execute(AInput: string): Boolean;
 begin
   FInput := AInput;
   FInputSize := Length(AInput);
 
-  Result := ExecTransition(FInitialState, 1);
+  Result := ExecuteTransition(FInitialState, 1);
 end;
 
-function TNFA.ExecTransition(const AState: string; const AIndexInput: Integer): Boolean;
+function TAutomata.ExecuteTransition(const AState: string; const AIndexInput: Integer): Boolean;
 begin
   Log(AState, AIndexInput);
 
   if IsInputOver(AIndexInput) then
     Result := IsFinalState(AState)
   else
-    Result := ExecStateTransition(AState, AIndexInput);
+    Result := ExecuteStateTransition(AState, AIndexInput);
 
   if not Result then
-    Result := ExecEmptyTransitions(AState, AIndexInput);
+    Result := ExecuteEmptyTransition(AState, AIndexInput);
 end;
 
-function TNFA.IsInputOver(const AIndexInput: Integer): Boolean;
+function TAutomata.IsInputOver(const AIndexInput: Integer): Boolean;
 begin
   Result := AIndexInput > FInputSize;
 end;
 
-function TNFA.IsFinalState(const AState: string): Boolean;
+function TAutomata.IsFinalState(const AState: string): Boolean;
 begin
   Result := FFinalStates.IndexOf(AState) <> -1;
 end;
 
-function TNFA.ExecStateTransition(const AState: string; const AIndexInput: Integer): Boolean;
+function TAutomata.ExecuteStateTransition(const AState: string; const AIndexInput: Integer): Boolean;
 var
   i: Integer;
-  NextInput: Integer;
+  NextIndexInput: Integer;
   Transitions: TStringList;
 begin
+  Result := False;
   Transitions := GetTransitions(AState, AIndexInput);
+  if not Assigned(Transitions) then
+    Exit;
 
-  if Assigned(Transitions) then
-  begin
-    NextInput := AIndexInput + 1;
+  NextIndexInput := AIndexInput + 1;
 
-    Result := False;
-    for i := 0 to Transitions.Count - 1 do
-      Result := Result or ExecTransition(Transitions.Strings[i], NextInput);
-  end
-  else
-    Result := False
+  for i := 0 to Transitions.Count - 1 do
+    Result := Result or ExecuteTransition(Transitions.Strings[i], NextIndexInput);
 end;
 
-function TNFA.ExecEmptyTransitions(const AState: string; const AIndexInput: Integer): Boolean;
+function TAutomata.ExecuteEmptyTransition(const AState: string; const AIndexInput: Integer): Boolean;
 var
   i: Integer;
   Transitions: TStringList;
 begin
+  Result := False;
   Transitions := GetTransitions(AState, EPSILON);
 
-  { TODO : Eliminar ciclos com transações vazias. }
-
-  Result := False;
   for i := 0 to Transitions.Count - 1 do
-    Result := Result or ExecTransition(Transitions.Strings[i], AIndexInput);
+    Result := Result or ExecuteTransition(Transitions.Strings[i], AIndexInput);
 end;
 
-function TNFA.GetTransitions(const AState: string; const AIndexInput: Integer): TStringList;
+function TAutomata.GetTransitions(const AState: string; const AIndexInput: Integer): TStringList;
 begin
   Result := GetTransitions(AState, FInput[AIndexInput]);
 end;
 
-function TNFA.GetTransitions(const AState, ASymbol: string): TStringList;
+function TAutomata.GetTransitions(const AState, ASymbol: string): TStringList;
 var
-  IndexState: Integer;
-  IndexSymbol: Integer;
+  IdxState: Integer;
+  IdxSymbol: Integer;
 begin
-  IndexState := FStates.IndexOf(AState);
-  IndexSymbol := FSymbols.IndexOf(ASymbol);
+  IdxState := FStates.IndexOf(AState);
+  IdxSymbol := FSymbols.IndexOf(ASymbol);
 
-  if (IndexState = -1) or (IndexSymbol = -1) then
+  if (IdxState = -1) or (IdxSymbol = -1) then
     Result := nil
   else
-    Result := FTransitions[IndexState][IndexSymbol];
+    Result := FTransitions[IdxState][IdxSymbol];
 end;
 
-procedure TNFA.Log(const AState: string; const AIndexInput: Integer);
+procedure TAutomata.Log(const AState: string; const AIndexInput: Integer);
 var
   Msg: string;
 begin
