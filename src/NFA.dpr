@@ -3,7 +3,7 @@ program NFA;
 uses
   Vcl.Forms,
   uMain in 'uMain.pas' {frmMain},
-  uNFA in 'uNFA.pas';
+  uAutomata in 'uAutomata.pas';
 
 {$R *.res}
 

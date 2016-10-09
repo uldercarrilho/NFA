@@ -1,4 +1,4 @@
-unit uNFA;
+unit uAutomata;
 
 interface
 
