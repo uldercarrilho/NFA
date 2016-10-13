@@ -23,8 +23,10 @@ type
     FIndexEpsilonSymbol: Integer;
     procedure CreateTransitions;
     procedure DestroyTransactions;
-    function ExecuteTransition(const AState: string; const AIndexInput: Integer): Boolean;
-    function ExecuteEmptyTransition(const AState: string; const AIndexInput: Integer): Boolean;
+    function ExecuteTransition(const AState: string; const AIndexInput: Integer;
+      const AStateEmpty: string; const AIndexInputEmpty: Integer): Boolean;
+    function ExecuteEmptyTransition(const AState: string; const AIndexInput: Integer;
+      const AStateEmpty: string; const AIndexInputEmpty: Integer): Boolean;
     function ExecuteStateTransition(const AState: string; const AIndexInput: Integer): Boolean;
     function GetTransitions(const AState, ASymbol: string): TStringList; overload;
     function GetTransitions(const AState: string; const AIndexInput: Integer): TStringList; overload;
@@ -131,10 +133,17 @@ begin
   FInput := AInput;
   FInputSize := Length(AInput);
 
-  Result := ExecuteTransition(FInitialState, 1);
+  Result := ExecuteTransition(FInitialState, 1, '', 0);
 end;
 
-function TAutomata.ExecuteTransition(const AState: string; const AIndexInput: Integer): Boolean;
+function TAutomata.ExecuteTransition(const AState: string; const AIndexInput: Integer;
+  const AStateEmpty: string; const AIndexInputEmpty: Integer): Boolean;
+
+  function IsInCycle: Boolean;
+  begin
+    Result := (AState = AStateEmpty) and (AIndexInput = AIndexInputEmpty);
+  end;
+
 begin
   Log(AState, AIndexInput);
 
@@ -143,8 +152,14 @@ begin
   else
     Result := ExecuteStateTransition(AState, AIndexInput);
 
-  if not Result then
-    Result := ExecuteEmptyTransition(AState, AIndexInput);
+  if not Result and not IsInCycle then
+  begin
+    // check if start a new cycle, so use the current state and input
+    if AStateEmpty = '' then
+      Result := ExecuteEmptyTransition(AState, AIndexInput, AState, AIndexInput)
+    else
+      Result := ExecuteEmptyTransition(AState, AIndexInput, AStateEmpty, AIndexInputEmpty);
+  end;
 end;
 
 function TAutomata.IsInputOver(const AIndexInput: Integer): Boolean;
@@ -171,10 +186,11 @@ begin
   NextIndexInput := AIndexInput + 1;
 
   for i := 0 to Transitions.Count - 1 do
-    Result := Result or ExecuteTransition(Transitions.Strings[i], NextIndexInput);
+    Result := Result or ExecuteTransition(Transitions.Strings[i], NextIndexInput, '', 0);
 end;
 
-function TAutomata.ExecuteEmptyTransition(const AState: string; const AIndexInput: Integer): Boolean;
+function TAutomata.ExecuteEmptyTransition(const AState: string; const AIndexInput: Integer;
+  const AStateEmpty: string; const AIndexInputEmpty: Integer): Boolean;
 var
   i: Integer;
   Transitions: TStringList;
@@ -183,7 +199,7 @@ begin
   Transitions := GetTransitions(AState, EPSILON);
 
   for i := 0 to Transitions.Count - 1 do
-    Result := Result or ExecuteTransition(Transitions.Strings[i], AIndexInput);
+    Result := Result or ExecuteTransition(Transitions.Strings[i], AIndexInput, AStateEmpty, AIndexInputEmpty);
 end;
 
 function TAutomata.GetTransitions(const AState: string; const AIndexInput: Integer): TStringList;
